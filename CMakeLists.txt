@@ -964,6 +964,10 @@ else()
         add_subdirectory(os_stub/spdm_device_secret_lib_null)
         add_subdirectory(os_stub/spdm_cert_verify_callback_sample)
 
+        add_subdirectory(os_stub/oqslib)
+        add_subdirectory(os_stub/pqccryptlib_oqs)
+        add_subdirectory(os_stub/pqccryptlib_null)
+
         if(NOT DISABLE_TESTS STREQUAL "1")
             add_subdirectory(unit_test/spdm_transport_test_lib)
             add_subdirectory(unit_test/cmockalib)
@@ -980,6 +984,9 @@ else()
             add_subdirectory(unit_test/test_spdm_fips)
             add_subdirectory(unit_test/test_spdm_secured_message)
             add_subdirectory(unit_test/test_spdm_sample)
+
+            add_subdirectory(unit_test/test_crypt_oqs)
+            add_subdirectory(unit_test/gen_pqc_key)
             endif()
 
             if((NOT TOOLCHAIN STREQUAL "ARM_DS2022") AND (NOT TOOLCHAIN STREQUAL "RISCV_XPACK"))
