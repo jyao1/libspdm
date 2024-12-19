@@ -16,4 +16,5 @@ target_sources(spdm_common_lib
         libspdm_com_opaque_data.c
         libspdm_com_support.c
         libspdm_com_msg_log.c
+        libspdm_auth_com_opaque_data.c
 )

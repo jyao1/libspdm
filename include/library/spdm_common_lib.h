@@ -159,6 +159,11 @@ typedef enum {
 
     LIBSPDM_DATA_TOTAL_KEY_PAIRS,
 
+    /* UINT8 data for LIBSPDM_AUTH_ROLE_x */
+    LIBSPDM_DATA_AUTH_ROLE_MASK,
+    /* UINT32 data for LIBSPDM_AUTH_SESSION_PROCESS_TYPE_x */
+    LIBSPDM_DATA_AUTH_SESSION_PROCESS_TYPE,
+
     /* MAX */
     LIBSPDM_DATA_MAX
 } libspdm_data_type_t;
@@ -236,6 +241,67 @@ typedef enum {
     /* MAX */
     LIBSPDM_RESPONSE_STATE_MAX
 } libspdm_response_state_t;
+
+/* Auth Role Mask */
+#define LIBSPDM_AUTH_ROLE_USAP_INITIATOR 0x1
+#define LIBSPDM_AUTH_ROLE_USAP_TARGET 0x2
+#define LIBSPDM_AUTH_ROLE_SEAP_INITIATOR 0x4
+#define LIBSPDM_AUTH_ROLE_SEAP_TARGET 0x8
+
+typedef enum {
+    /* Before send or receive any SEAP */
+    LIBSPDM_AUTH_SESSION_STATE_SEAP_NOT_STARTED,
+
+    /* After send INVOKE_SEAP */
+    LIBSPDM_AUTH_SESSION_STATE_AFTER_INVOKE_SEAP,
+
+    /* After receive SEAP_SUCCESS */
+    LIBSPDM_AUTH_SESSION_STATE_AFTER_SEAP_SUCCESS,
+
+    /* MAX */
+    LIBSPDM_SESSION_SEAP_STATE_MAX,
+} libspdm_auth_session_seap_disc_state_t;
+
+typedef enum {
+    /* Before send or receive any USAP */
+    LIBSPDM_AUTH_SESSION_STATE_USAP_NOT_STARTED,
+
+    /* After receive AUTH_HELLO */
+    LIBSPDM_AUTH_SESSION_STATE_AFTER_AUTH_HELLO,
+
+    /* MAX */
+    LIBSPDM_AUTH_SESSION_USAP_STATE_MAX,
+} libspdm_auth_session_usap_disc_state_t;
+
+typedef enum {
+    /* Before send GET_AUTH_VERSION */
+    LIBSPDM_AUTH_SESSION_STATE_NOT_STARTED,
+
+    /* After send GET_AUTH_VERSION */
+    LIBSPDM_AUTH_SESSION_STATE_AFTER_GET_VERSION,
+
+    /* After send SELECT_AUTH_VERSION */
+    LIBSPDM_AUTH_SESSION_STATE_AFTER_SELECT_VERSION,
+
+    /* After send GET_AUTH_CAPABILITIES */
+    LIBSPDM_AUTH_SESSION_STATE_AFTER_GET_CAPABILITIES,
+
+    /* After send START_AUTH or ELEVATE_PRIVILEGE */
+    LIBSPDM_AUTH_SESSION_STATE_START,
+
+    /* After send END_AUTH or END_ELEVATED_PRIVILEGE */
+    LIBSPDM_AUTH_SESSION_STATE_END,
+
+    /* MAX */
+    LIBSPDM_AUTH_SESSION_STATE_MAX,
+} libspdm_auth_session_state_t;
+
+typedef enum {
+    LIBSPDM_AUTH_SESSION_PROCESS_TYPE_NONE,
+    LIBSPDM_AUTH_SESSION_PROCESS_TYPE_USAP,
+    LIBSPDM_AUTH_SESSION_PROCESS_TYPE_SEAP,
+    LIBSPDM_AUTH_SESSION_PROCESS_TYPE_MAX,
+} libspdm_auth_session_process_type_t;
 
 /* These macros apply only if the negotiated SPDM version is 1.0 or 1.1.
  * The default verification mode is big endian only. */

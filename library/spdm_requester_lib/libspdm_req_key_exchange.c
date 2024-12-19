@@ -713,6 +713,9 @@ static libspdm_return_t libspdm_try_send_receive_key_exchange(
         goto receive_done;
     }
 
+    /* set session related auth info */
+    libspdm_session_info_set_auth_info(spdm_context, session_info);
+
     /* -=[Process Response Phase]=- */
     status = libspdm_append_message_k(spdm_context, session_info, true, spdm_request,
                                       spdm_request_size);

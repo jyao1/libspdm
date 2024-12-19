@@ -559,7 +559,7 @@ void libspdm_build_opaque_data_supported_version_data(libspdm_context_t *spdm_co
  **/
 libspdm_return_t libspdm_process_opaque_data_version_selection_data(libspdm_context_t *spdm_context,
                                                                     size_t data_in_size,
-                                                                    void *data_in);
+                                                                    const void *data_in);
 
 #if LIBSPDM_ENABLE_CAPABILITY_MUT_AUTH_CAP
 /**

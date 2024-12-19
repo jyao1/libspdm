@@ -833,7 +833,7 @@ uint16_t libspdm_allocate_rsp_session_id(const libspdm_context_t *spdm_context, 
  *                        On output, it means the size in bytes of copied data_out buffer.
  * @param  data_out       A pointer to the destination buffer to store the opaque data version selection.
  **/
-void libspdm_build_opaque_data_version_selection_data(const libspdm_context_t *spdm_context,
+void libspdm_build_opaque_data_version_selection_data(libspdm_context_t *spdm_context,
                                                       size_t *data_out_size,
                                                       void *data_out);
 

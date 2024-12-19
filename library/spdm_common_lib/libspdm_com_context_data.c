@@ -137,6 +137,7 @@ static bool need_session_info_for_data(libspdm_data_type_t data_type)
     case LIBSPDM_DATA_SESSION_SEQUENCE_NUMBER_RSP_DIR:
     case LIBSPDM_DATA_SESSION_SEQUENCE_NUMBER_REQ_DIR:
     case LIBSPDM_DATA_SESSION_SEQUENCE_NUMBER_ENDIAN:
+    case LIBSPDM_DATA_AUTH_SESSION_PROCESS_TYPE:
         return true;
     default:
         return false;
@@ -802,6 +803,15 @@ libspdm_return_t libspdm_set_data(void *spdm_context, libspdm_data_type_t data_t
         }
         context->local_context.total_key_pairs = *(uint8_t *)data;
         break;
+    case LIBSPDM_DATA_AUTH_ROLE_MASK:
+        if (data_size != sizeof(uint8_t)) {
+            return LIBSPDM_STATUS_INVALID_PARAMETER;
+        }
+        if (parameter->location != LIBSPDM_DATA_LOCATION_LOCAL) {
+            return LIBSPDM_STATUS_INVALID_PARAMETER;
+        }
+        context->local_context.auth.auth_role_mask = *(uint8_t *)data;
+        break;
     default:
         return LIBSPDM_STATUS_UNSUPPORTED_CAP;
         break;
@@ -1168,6 +1178,17 @@ libspdm_return_t libspdm_get_data(void *spdm_context, libspdm_data_type_t data_t
         }
         target_data_size = sizeof(uint8_t);
         target_data = &context->local_context.total_key_pairs;
+        break;
+    case LIBSPDM_DATA_AUTH_ROLE_MASK:
+        if (parameter->location != LIBSPDM_DATA_LOCATION_LOCAL) {
+            return LIBSPDM_STATUS_INVALID_PARAMETER;
+        }
+        target_data_size = sizeof(uint8_t);
+        target_data = &context->local_context.auth.auth_role_mask;
+        break;
+    case LIBSPDM_DATA_AUTH_SESSION_PROCESS_TYPE:
+        target_data_size = sizeof(libspdm_auth_session_process_type_t);
+        target_data = &session_info->auth.auth_session_process_type;
         break;
     default:
         return LIBSPDM_STATUS_UNSUPPORTED_CAP;
@@ -3287,6 +3308,10 @@ libspdm_return_t libspdm_init_context_with_secured_context(void *spdm_context,
     context->local_context.secured_message_version.spdm_version[2] =
         SECURED_SPDM_VERSION_12 << SPDM_VERSION_NUMBER_SHIFT_BIT;
     context->local_context.capability.st1 = SPDM_ST1_VALUE_US;
+
+    context->local_context.auth.version.auth_version_count = SPDM_AUTH_MAX_VERSION_COUNT;
+    context->local_context.auth.version.auth_version[0] =
+        (SPDM_AUTH_VERSION_10 << SPDM_AUTH_VERSION_NUMBER_SHIFT_BIT);
 
     context->mut_auth_cert_chain_buffer_size = 0;
 

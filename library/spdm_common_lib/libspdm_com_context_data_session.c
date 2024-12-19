@@ -6,6 +6,130 @@
 
 #include "internal/libspdm_secured_message_lib.h"
 
+uint16_t libspdm_get_credential_id_from_session(libspdm_context_t *spdm_context,
+                                                uint32_t session_id)
+{
+    libspdm_session_info_t *session_info;
+
+    session_info =
+        libspdm_get_session_info_via_session_id(spdm_context, session_id);
+    if (session_info == NULL) {
+        LIBSPDM_ASSERT(false);
+        return 0xFFFF;
+    }
+    if (session_info->auth.auth_session_state != LIBSPDM_AUTH_SESSION_STATE_START) {
+        LIBSPDM_ASSERT(false);
+        return 0xFFFF;
+    }
+    return session_info->auth.common.credential_id;
+}
+
+bool libspdm_get_auth_proc_id_from_session(libspdm_context_t *spdm_context,
+    libspdm_session_info_t *session_info,
+    spdm_auth_auth_proc_id_t *proc_id)
+{
+    void *hash_context;
+    bool result;
+    void *prefix_str;
+    size_t prefix_str_len;
+
+    hash_context = NULL;
+    result = libspdm_hash_init (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+                                &hash_context);
+    if (!result) {
+        libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+        return false;
+    }
+    switch (session_info->auth.auth_session_process_type) {
+    case LIBSPDM_AUTH_SESSION_PROCESS_TYPE_USAP:
+        result = libspdm_hash_update (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+                                      &hash_context,
+                                      session_info->auth.usap.requester_nonce,
+                                      sizeof(session_info->auth.usap.requester_nonce));
+        if (!result) {
+            libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+            return false;
+        }
+        result = libspdm_hash_update (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+                                      &hash_context,
+                                      session_info->auth.usap.responder_nonce,
+                                      sizeof(session_info->auth.usap.responder_nonce));
+        if (!result) {
+            libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+            return false;
+        }
+        result = libspdm_hash_update (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+                                      &hash_context,
+                                      &session_info->auth.usap.sequence_number,
+                                      sizeof(session_info->auth.usap.sequence_number));
+        if (!result) {
+            libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+            return false;
+        }
+        break;
+    case LIBSPDM_AUTH_SESSION_PROCESS_TYPE_SEAP:
+        if (session_info->auth.seap.target_is_responder) {
+            prefix_str = "Responder";
+            prefix_str_len = sizeof("Responder") - 1;
+        } else {
+            prefix_str = "Requester";
+            prefix_str_len = sizeof("Requester") - 1;
+        }
+        result = libspdm_hash_update (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+                                      &hash_context,
+                                      prefix_str,
+                                      prefix_str_len);
+        if (!result) {
+            libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+            return false;
+        }
+        result = libspdm_hash_update (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+                                      &hash_context,
+                                      session_info->auth.seap.key_exchange_nonce,
+                                      sizeof(session_info->auth.seap.key_exchange_nonce));
+        if (!result) {
+            libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+            return false;
+        }
+        result = libspdm_hash_update (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+                                      &hash_context,
+                                      session_info->auth.seap.key_exchange_rsp_nonce,
+                                      sizeof(session_info->auth.seap.key_exchange_rsp_nonce));
+        if (!result) {
+            libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+            return false;
+        }
+        break;
+    default:
+        LIBSPDM_ASSERT(false);
+    }
+    result = libspdm_hash_final (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256,
+                                 hash_context, proc_id->id);
+    if (!result) {
+        libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+        return false;
+    }
+    libspdm_hash_free (SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256, hash_context);
+
+    return true;
+}
+
+void libspdm_session_info_set_auth_info(libspdm_context_t *spdm_context,
+                                        libspdm_session_info_t *session_info)
+{
+    session_info->auth.invoke_seap_credential_id = 0;
+    if ((spdm_context->connection_info.auth.auth_role_mask & LIBSPDM_AUTH_ROLE_SEAP_TARGET) != 0) {
+        session_info->auth.auth_session_process_type = LIBSPDM_AUTH_SESSION_PROCESS_TYPE_SEAP;
+        session_info->auth.invoke_seap_credential_id =
+            spdm_context->connection_info.auth.invoke_seap_credential_id;
+    } else if ((spdm_context->connection_info.auth.auth_role_mask & LIBSPDM_AUTH_ROLE_USAP_TARGET) != 0) {
+        session_info->auth.auth_session_process_type = LIBSPDM_AUTH_SESSION_PROCESS_TYPE_USAP;
+    } else {
+        session_info->auth.auth_session_process_type = LIBSPDM_AUTH_SESSION_PROCESS_TYPE_NONE;
+    }
+    session_info->auth.auth_session_state = LIBSPDM_AUTH_SESSION_STATE_NOT_STARTED;
+}
+
 /**
  * This function initializes the session info.
  *
@@ -78,6 +202,7 @@ void libspdm_session_info_init(libspdm_context_t *spdm_context,
 #endif
 
     libspdm_zero_mem (&(session_info->last_key_update_request), sizeof(spdm_key_update_request_t));
+    libspdm_zero_mem (&(session_info->auth), sizeof(libspdm_auth_session_info_t));
     libspdm_zero_mem(session_info, offsetof(libspdm_session_info_t, secured_message_context));
     libspdm_secured_message_init_context(session_info->secured_message_context);
     session_info->session_id = session_id;

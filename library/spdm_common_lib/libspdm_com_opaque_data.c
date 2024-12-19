@@ -6,6 +6,117 @@
 
 #include "internal/libspdm_common_lib.h"
 
+size_t libspdm_get_opaque_data_table_header_size(const libspdm_context_t *spdm_context)
+{
+    if (libspdm_get_connection_version (spdm_context) >= SPDM_MESSAGE_VERSION_12) {
+        return sizeof(spdm_general_opaque_data_table_header_t);
+    } else {
+        return sizeof(secured_message_general_opaque_data_table_header_t);
+    }
+}
+
+void libspdm_build_opaque_data_table_header_data(const libspdm_context_t *spdm_context,
+                                                 uint8_t total_elements,
+                                                 size_t *data_out_size,
+                                                 void *data_out)
+{
+    size_t final_data_size;
+    secured_message_general_opaque_data_table_header_t *general_opaque_data_table_header;
+    spdm_general_opaque_data_table_header_t *spdm_general_opaque_data_table_header;
+
+    final_data_size = libspdm_get_opaque_data_table_header_size(spdm_context);
+    LIBSPDM_ASSERT(*data_out_size >= final_data_size);
+
+    if (libspdm_get_connection_version (spdm_context) >= SPDM_MESSAGE_VERSION_12) {
+        spdm_general_opaque_data_table_header = data_out;
+        spdm_general_opaque_data_table_header->total_elements = total_elements;
+        libspdm_write_uint24(spdm_general_opaque_data_table_header->reserved, 0);
+    } else {
+        general_opaque_data_table_header = data_out;
+        general_opaque_data_table_header->spec_id = SECURED_MESSAGE_OPAQUE_DATA_SPEC_ID;
+        general_opaque_data_table_header->opaque_version = SECURED_MESSAGE_OPAQUE_VERSION;
+        general_opaque_data_table_header->total_elements = total_elements;
+        general_opaque_data_table_header->reserved = 0;
+    }
+    *data_out_size = final_data_size;
+}
+
+size_t libspdm_get_opaque_data_version_selection_element_size(const libspdm_context_t *spdm_context)
+{
+    size_t size;
+
+    if (spdm_context->local_context.secured_message_version.spdm_version_count == 0) {
+        return 0;
+    }
+
+    size = sizeof(secured_message_opaque_element_table_header_t) +
+           sizeof(secured_message_opaque_element_version_selection_t);
+
+    /* Add Padding*/
+    return (size + 3) & ~3;
+}
+
+size_t libspdm_get_opaque_data_supported_version_element_size(const libspdm_context_t *spdm_context)
+{
+    size_t size;
+
+    if (spdm_context->local_context.secured_message_version.spdm_version_count == 0) {
+        return 0;
+    }
+
+    size = sizeof(secured_message_opaque_element_table_header_t) +
+           sizeof(secured_message_opaque_element_supported_version_t) +
+           sizeof(spdm_version_number_t) *
+           spdm_context->local_context.secured_message_version.spdm_version_count;
+
+    /* Add Padding*/
+    return (size + 3) & ~3;
+}
+
+size_t libspdm_get_opaque_data_size_for_responder_exchange(const libspdm_context_t *spdm_context)
+{
+    size_t size;
+    uint8_t auth_role_mask;
+    bool mut_auth_cap;
+
+    if (spdm_context->local_context.secured_message_version.spdm_version_count == 0) {
+        return 0;
+    }
+
+    auth_role_mask = spdm_context->local_context.auth.auth_role_mask;
+    mut_auth_cap = libspdm_is_capabilities_flag_supported(
+        spdm_context, false,
+        SPDM_GET_CAPABILITIES_REQUEST_FLAGS_MUT_AUTH_CAP,
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MUT_AUTH_CAP);
+    if (!mut_auth_cap) {
+        auth_role_mask &= ~(LIBSPDM_AUTH_ROLE_SEAP_INITIATOR |
+                            LIBSPDM_AUTH_ROLE_SEAP_TARGET);
+    }
+    if ((spdm_context->connection_info.auth.auth_role_mask & LIBSPDM_AUTH_ROLE_SEAP_TARGET) == 0) {
+        auth_role_mask &= ~(LIBSPDM_AUTH_ROLE_SEAP_TARGET);
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_SEAP_TARGET) != 0) {
+        auth_role_mask &= ~(LIBSPDM_AUTH_ROLE_USAP_TARGET);
+    }
+
+    size = 0;
+    if (spdm_context->local_context.secured_message_version.spdm_version_count != 0) {
+        size += libspdm_get_opaque_data_version_selection_element_size(spdm_context);
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_SEAP_INITIATOR) != 0) {
+        size += libspdm_get_aods_invoke_seap_element_size (spdm_context);
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_USAP_TARGET) != 0) {
+        size += libspdm_get_aods_auth_hello_element_size (spdm_context);
+    }
+
+    if (size == 0) {
+        return 0;
+    }
+    size += libspdm_get_opaque_data_table_header_size(spdm_context);
+    return size;
+}
+
 /**
  * Return the size in bytes of opaque data version selection.
  *
@@ -15,23 +126,42 @@
  **/
 size_t libspdm_get_opaque_data_version_selection_data_size(const libspdm_context_t *spdm_context)
 {
+    return libspdm_get_opaque_data_size_for_responder_exchange(spdm_context);
+}
+
+size_t libspdm_get_opaque_data_size_for_requester_exchange(const libspdm_context_t *spdm_context)
+{
     size_t size;
+    uint8_t auth_role_mask;
+    bool mut_auth_cap;
 
     if (spdm_context->local_context.secured_message_version.spdm_version_count == 0) {
         return 0;
     }
 
-    if (libspdm_get_connection_version (spdm_context) >= SPDM_MESSAGE_VERSION_12) {
-        size = sizeof(spdm_general_opaque_data_table_header_t) +
-               sizeof(secured_message_opaque_element_table_header_t) +
-               sizeof(secured_message_opaque_element_version_selection_t);
-    } else {
-        size = sizeof(secured_message_general_opaque_data_table_header_t) +
-               sizeof(secured_message_opaque_element_table_header_t) +
-               sizeof(secured_message_opaque_element_version_selection_t);
+    auth_role_mask = spdm_context->local_context.auth.auth_role_mask;
+    mut_auth_cap = libspdm_is_capabilities_flag_supported(
+        spdm_context, true,
+        SPDM_GET_CAPABILITIES_REQUEST_FLAGS_MUT_AUTH_CAP,
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MUT_AUTH_CAP);
+    if (!mut_auth_cap) {
+        auth_role_mask &= ~(LIBSPDM_AUTH_ROLE_SEAP_INITIATOR |
+                            LIBSPDM_AUTH_ROLE_SEAP_TARGET);
     }
-    /* Add Padding*/
-    return (size + 3) & ~3;
+
+    size = 0;
+    if (spdm_context->local_context.secured_message_version.spdm_version_count != 0) {
+        size += libspdm_get_opaque_data_supported_version_element_size(spdm_context);
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_SEAP_INITIATOR) != 0) {
+        size += libspdm_get_aods_invoke_seap_element_size (spdm_context);
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_USAP_TARGET) != 0) {
+        size += libspdm_get_aods_auth_hello_element_size (spdm_context);
+    }
+
+    size += libspdm_get_opaque_data_table_header_size(spdm_context);
+    return size;
 }
 
 /**
@@ -43,27 +173,7 @@ size_t libspdm_get_opaque_data_version_selection_data_size(const libspdm_context
  **/
 size_t libspdm_get_opaque_data_supported_version_data_size(libspdm_context_t *spdm_context)
 {
-    size_t size;
-
-    if (spdm_context->local_context.secured_message_version.spdm_version_count == 0) {
-        return 0;
-    }
-
-    if (libspdm_get_connection_version (spdm_context) >= SPDM_MESSAGE_VERSION_12) {
-        size = sizeof(spdm_general_opaque_data_table_header_t) +
-               sizeof(secured_message_opaque_element_table_header_t) +
-               sizeof(secured_message_opaque_element_supported_version_t) +
-               sizeof(spdm_version_number_t) *
-               spdm_context->local_context.secured_message_version.spdm_version_count;
-    } else {
-        size = sizeof(secured_message_general_opaque_data_table_header_t) +
-               sizeof(secured_message_opaque_element_table_header_t) +
-               sizeof(secured_message_opaque_element_supported_version_t) +
-               sizeof(spdm_version_number_t) *
-               spdm_context->local_context.secured_message_version.spdm_version_count;
-    }
-    /* Add Padding*/
-    return (size + 3) & ~3;
+    return libspdm_get_opaque_data_size_for_requester_exchange(spdm_context);
 }
 
 /**
@@ -80,17 +190,10 @@ size_t libspdm_get_untrusted_opaque_data_supported_version_data_size(
 {
     size_t size;
 
-    if (libspdm_get_connection_version (spdm_context) >= SPDM_MESSAGE_VERSION_12) {
-        size = sizeof(spdm_general_opaque_data_table_header_t) +
-               sizeof(secured_message_opaque_element_table_header_t) +
-               sizeof(secured_message_opaque_element_supported_version_t) +
-               sizeof(spdm_version_number_t) * version_count;
-    } else {
-        size = sizeof(secured_message_general_opaque_data_table_header_t) +
-               sizeof(secured_message_opaque_element_table_header_t) +
-               sizeof(secured_message_opaque_element_supported_version_t) +
-               sizeof(spdm_version_number_t) * version_count;
-    }
+    size = libspdm_get_opaque_data_table_header_size(spdm_context) +
+           sizeof(secured_message_opaque_element_table_header_t) +
+           sizeof(secured_message_opaque_element_supported_version_t) +
+           sizeof(spdm_version_number_t) * version_count;
     /* Add Padding*/
     return (size + 3) & ~3;
 }

@@ -477,6 +477,9 @@ static libspdm_return_t libspdm_try_send_receive_psk_exchange(
                                       psk_hint,
                                       psk_hint_size);
 
+    /* set session related auth info */
+    libspdm_session_info_set_auth_info(spdm_context, session_info);
+
     /* Cache session data*/
 
     status = libspdm_append_message_k(spdm_context, session_info, true, spdm_request,

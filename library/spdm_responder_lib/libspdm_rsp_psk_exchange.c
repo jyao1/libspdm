@@ -376,6 +376,9 @@ libspdm_return_t libspdm_get_response_psk_exchange(libspdm_context_t *spdm_conte
 
     ptr += opaque_psk_exchange_rsp_size;
 
+    /* set session related auth info */
+    libspdm_session_info_set_auth_info(spdm_context, session_info);
+
     status = libspdm_append_message_k(spdm_context, session_info, false, request, request_size);
     if (LIBSPDM_STATUS_IS_ERROR(status)) {
         libspdm_free_session_id(spdm_context, session_id);

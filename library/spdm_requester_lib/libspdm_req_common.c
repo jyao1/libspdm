@@ -40,40 +40,21 @@ uint16_t libspdm_allocate_req_session_id(libspdm_context_t *spdm_context, bool u
     return (INVALID_SESSION_ID & 0xFFFF);
 }
 
-void libspdm_build_opaque_data_supported_version_data(libspdm_context_t *spdm_context,
-                                                      size_t *data_out_size,
-                                                      void *data_out)
+void libspdm_build_opaque_data_supported_version_element(
+    libspdm_context_t *spdm_context,
+    size_t *data_out_size,
+    void *data_out)
 {
     size_t final_data_size;
-    secured_message_general_opaque_data_table_header_t *general_opaque_data_table_header;
-    spdm_general_opaque_data_table_header_t *spdm_general_opaque_data_table_header;
     secured_message_opaque_element_table_header_t *opaque_element_table_header;
     secured_message_opaque_element_supported_version_t *opaque_element_support_version;
     spdm_version_number_t *versions_list;
     void *end;
 
-    if (spdm_context->local_context.secured_message_version.spdm_version_count == 0) {
-        *data_out_size = 0;
-        return;
-    }
-
-    final_data_size = libspdm_get_opaque_data_supported_version_data_size(spdm_context);
+    final_data_size = libspdm_get_opaque_data_supported_version_element_size(spdm_context);
     LIBSPDM_ASSERT(*data_out_size >= final_data_size);
 
-    if (libspdm_get_connection_version (spdm_context) >= SPDM_MESSAGE_VERSION_12) {
-        spdm_general_opaque_data_table_header = data_out;
-        spdm_general_opaque_data_table_header->total_elements = 1;
-        libspdm_write_uint24(spdm_general_opaque_data_table_header->reserved, 0);
-        opaque_element_table_header = (void *)(spdm_general_opaque_data_table_header + 1);
-    } else {
-        general_opaque_data_table_header = data_out;
-        general_opaque_data_table_header->spec_id = SECURED_MESSAGE_OPAQUE_DATA_SPEC_ID;
-        general_opaque_data_table_header->opaque_version = SECURED_MESSAGE_OPAQUE_VERSION;
-        general_opaque_data_table_header->total_elements = 1;
-        general_opaque_data_table_header->reserved = 0;
-        opaque_element_table_header = (void *)(general_opaque_data_table_header + 1);
-    }
-
+    opaque_element_table_header = (void *)(data_out);
     opaque_element_table_header->id = SPDM_REGISTRY_ID_DMTF;
     opaque_element_table_header->vendor_len = 0;
     opaque_element_table_header->opaque_element_data_len =
@@ -101,6 +82,94 @@ void libspdm_build_opaque_data_supported_version_data(libspdm_context_t *spdm_co
     libspdm_zero_mem(end, (size_t)data_out + final_data_size - (size_t)end);
 }
 
+void libspdm_build_opaque_data_for_requester_exchange(
+    libspdm_context_t *spdm_context,
+    size_t *data_out_size,
+    void *data_out)
+{
+    size_t final_data_size;
+    size_t header_size;
+    size_t supported_version_element_size;
+    size_t invoke_seap_element_size;
+    size_t auth_hello_element_size;
+    uint8_t auth_role_mask;
+    bool mut_auth_cap;
+    uint8_t total_elements;
+
+    spdm_context->connection_info.auth.auth_role_mask = 0;
+    if (spdm_context->local_context.secured_message_version.spdm_version_count == 0) {
+        return;
+    }
+
+    auth_role_mask = spdm_context->local_context.auth.auth_role_mask;
+    mut_auth_cap = libspdm_is_capabilities_flag_supported(
+        spdm_context, true,
+        SPDM_GET_CAPABILITIES_REQUEST_FLAGS_MUT_AUTH_CAP,
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MUT_AUTH_CAP);
+    if (!mut_auth_cap) {
+        auth_role_mask &= ~(LIBSPDM_AUTH_ROLE_SEAP_INITIATOR |
+                            LIBSPDM_AUTH_ROLE_SEAP_TARGET);
+    }
+
+    total_elements = 0;
+    header_size = libspdm_get_opaque_data_table_header_size (spdm_context);
+    if (spdm_context->local_context.secured_message_version.spdm_version_count != 0) {
+        supported_version_element_size =
+            libspdm_get_opaque_data_supported_version_element_size (spdm_context);
+        total_elements++;
+    } else {
+        supported_version_element_size = 0;
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_SEAP_INITIATOR) != 0) {
+        invoke_seap_element_size = libspdm_get_aods_invoke_seap_element_size (spdm_context);
+        total_elements++;
+    } else {
+        invoke_seap_element_size = 0;
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_USAP_TARGET) != 0) {
+        auth_hello_element_size = libspdm_get_aods_auth_hello_element_size (spdm_context);
+        total_elements++;
+    } else {
+        auth_hello_element_size = 0;
+    }
+    final_data_size = header_size + supported_version_element_size +
+                      invoke_seap_element_size + auth_hello_element_size;
+    if (total_elements == 0) {
+        *data_out_size = 0;
+        return;
+    }
+    LIBSPDM_ASSERT(*data_out_size >= final_data_size);
+
+    libspdm_build_opaque_data_table_header_data (spdm_context, total_elements, &header_size, data_out);
+    data_out = (void *)((uint8_t *)data_out + header_size);
+    if (spdm_context->local_context.secured_message_version.spdm_version_count != 0) {
+        libspdm_build_opaque_data_supported_version_element (spdm_context, &supported_version_element_size, data_out);
+        data_out = (void *)((uint8_t *)data_out + supported_version_element_size);
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_SEAP_INITIATOR) != 0) {
+        libspdm_build_aods_invoke_seap_element (spdm_context,
+                                                spdm_context->local_context.auth.invoke_seap_credential_id,
+                                                &invoke_seap_element_size, data_out);
+        data_out = (void *)((uint8_t *)data_out + invoke_seap_element_size);
+
+        /* JYAO1 - TBD - SET SEAP mask in INVOKE not SUCCESS */
+        spdm_context->connection_info.auth.auth_role_mask |= LIBSPDM_AUTH_ROLE_SEAP_INITIATOR;
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_USAP_TARGET) != 0) {
+        libspdm_build_aods_auth_hello_element (spdm_context, &auth_hello_element_size, data_out);
+        data_out = (void *)((uint8_t *)data_out + auth_hello_element_size);
+        spdm_context->connection_info.auth.auth_role_mask |= LIBSPDM_AUTH_ROLE_USAP_TARGET;
+    }
+    *data_out_size = final_data_size;
+}
+
+void libspdm_build_opaque_data_supported_version_data(libspdm_context_t *spdm_context,
+                                                      size_t *data_out_size,
+                                                      void *data_out)
+{
+    libspdm_build_opaque_data_for_requester_exchange (spdm_context, data_out_size, data_out);
+}
+
 /**
  * Process opaque data version selection.
  *
@@ -112,9 +181,10 @@ void libspdm_build_opaque_data_supported_version_data(libspdm_context_t *spdm_co
  * @retval RETURN_SUCCESS               The opaque data version selection is processed successfully.
  * @retval RETURN_UNSUPPORTED           The data_in is NOT opaque data version selection.
  **/
-libspdm_return_t libspdm_process_opaque_data_version_selection_data(libspdm_context_t *spdm_context,
-                                                                    size_t data_in_size,
-                                                                    void *data_in)
+libspdm_return_t libspdm_process_opaque_data_version_selection_element(
+    libspdm_context_t *spdm_context,
+    size_t data_in_size,
+    const void *data_in)
 {
     const secured_message_opaque_element_table_header_t
     *opaque_element_table_header;
@@ -179,4 +249,47 @@ libspdm_return_t libspdm_process_opaque_data_version_selection_data(libspdm_cont
     }
 
     return LIBSPDM_STATUS_UNSUPPORTED_CAP;
+}
+
+libspdm_return_t libspdm_process_opaque_data_for_requester_exchange(
+    libspdm_context_t *spdm_context,
+    size_t data_in_size,
+    const void *data_in)
+{
+    uint8_t auth_role_mask;
+    bool mut_auth_cap;
+
+    if (spdm_context->local_context.secured_message_version.spdm_version_count == 0) {
+        return LIBSPDM_STATUS_SUCCESS;
+    }
+
+    auth_role_mask = spdm_context->local_context.auth.auth_role_mask;
+    mut_auth_cap = libspdm_is_capabilities_flag_supported(
+        spdm_context, false,
+        SPDM_GET_CAPABILITIES_REQUEST_FLAGS_MUT_AUTH_CAP,
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MUT_AUTH_CAP);
+    if (!mut_auth_cap) {
+        auth_role_mask &= ~(LIBSPDM_AUTH_ROLE_SEAP_INITIATOR |
+                            LIBSPDM_AUTH_ROLE_SEAP_TARGET);
+    }
+
+    if (spdm_context->local_context.secured_message_version.spdm_version_count != 0) {
+        libspdm_process_opaque_data_version_selection_element (spdm_context, data_in_size, data_in);
+    }
+
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_SEAP_TARGET) != 0) {
+        libspdm_process_aods_invoke_seap_element (spdm_context, data_in_size, data_in);
+    }
+    if ((auth_role_mask & LIBSPDM_AUTH_ROLE_USAP_INITIATOR) != 0) {
+        libspdm_process_aods_auth_hello_element (spdm_context, data_in_size, data_in);
+    }
+
+    return LIBSPDM_STATUS_SUCCESS;
+}
+
+libspdm_return_t libspdm_process_opaque_data_version_selection_data(libspdm_context_t *spdm_context,
+                                                                    size_t data_in_size,
+                                                                    const void *data_in)
+{
+    return libspdm_process_opaque_data_for_requester_exchange(spdm_context, data_in_size, data_in);
 }

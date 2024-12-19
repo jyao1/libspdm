@@ -545,6 +545,9 @@ libspdm_return_t libspdm_get_response_key_exchange(libspdm_context_t *spdm_conte
         spdm_context, &opaque_key_exchange_rsp_size, ptr);
     ptr += opaque_key_exchange_rsp_size;
 
+    /* set session related auth info */
+    libspdm_session_info_set_auth_info(spdm_context, session_info);
+
     if (slot_id != 0xFF) {
         spdm_context->connection_info.local_used_cert_chain_buffer =
             spdm_context->local_context.local_cert_chain_provision[slot_id];
