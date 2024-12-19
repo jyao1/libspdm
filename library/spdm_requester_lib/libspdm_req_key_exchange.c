@@ -750,6 +750,9 @@ static libspdm_return_t libspdm_try_send_receive_key_exchange(
     session_info->peer_used_cert_chain_slot_id = slot_id;
     session_info->local_used_cert_chain_slot_id = *req_slot_id_param;
 
+    /* set session related auth info */
+    libspdm_session_info_set_auth_info(spdm_context, session_info);
+
     /* -=[Process Response Phase]=- */
     status = libspdm_append_message_k(spdm_context, session_info, true, spdm_request,
                                       spdm_request_size);

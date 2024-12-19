@@ -92,6 +92,72 @@ typedef struct {
 } libspdm_peer_used_cert_chain_t;
 
 typedef struct {
+    uint8_t auth_version_count;
+    spdm_auth_version_number_t auth_version[SPDM_AUTH_MAX_VERSION_COUNT];
+} libspdm_auth_device_version_t;
+
+typedef struct {
+    uint16_t message_caps;
+    uint16_t auth_process_caps;
+    uint8_t auth_record_process_time;
+    uint64_t auth_base_asym_algo_supported;
+    uint64_t auth_base_hash_algo_supported;
+    uint16_t supported_policy_owner_id_count;
+    size_t supported_policy_owner_id_size;
+    spdm_svh_dmtf_dsp_header_t
+        supported_policy_owner_id_list[LIBSPDM_AUTH_MAX_POLICY_LIST_COUNT];
+} libspdm_auth_capabilities_t;
+
+typedef struct {
+    /* provisioned auth role in opaque data */
+    uint8_t auth_role_mask;
+    uint16_t invoke_seap_credential_id;
+    libspdm_auth_device_version_t version;
+    libspdm_auth_capabilities_t capabilities;
+} libspdm_auth_local_context_t;
+
+typedef struct {
+    /* negotiated my auth role from opaque data
+     * it shall be subset of auth_role_mask in local_context_t
+     */
+    uint8_t auth_role_mask;
+    uint16_t invoke_seap_credential_id;
+} libspdm_auth_connection_info_t;
+
+typedef struct {
+    uint32_t sequence_number;
+    uint8_t requester_nonce[SPDM_AUTH_NONCE_SIZE];
+    uint8_t responder_nonce[SPDM_AUTH_NONCE_SIZE];
+    /* Non-zero when this USAS was continued from a persisted saved USAS.
+     * Equals the SavedSequenceNumber loaded from the saved state, and is
+     * included as element 4 of auth_proc_id_octet_string per DSP0289
+     * 'Authorization Process ID calculation'. */
+    uint32_t saved_sequence_number;
+} libspdm_auth_session_usap_info_t;
+
+typedef struct {
+    bool target_is_responder;
+    uint8_t key_exchange_nonce[SPDM_RANDOM_DATA_SIZE];
+    uint8_t key_exchange_rsp_nonce[SPDM_RANDOM_DATA_SIZE];
+} libspdm_auth_session_seap_info_t;
+
+typedef struct {
+    uint16_t credential_id;
+} libspdm_auth_session_common_info_t;
+
+typedef struct {
+    libspdm_auth_session_process_type_t auth_session_process_type;
+    uint16_t invoke_seap_credential_id;
+    libspdm_auth_session_state_t auth_session_state;
+    /* negotiated info */
+    spdm_auth_version_number_t auth_version;
+    bool auth_version_selected;
+    libspdm_auth_session_common_info_t common;
+    libspdm_auth_session_usap_info_t usap;
+    libspdm_auth_session_seap_info_t seap; // JYAO1
+} libspdm_auth_session_info_t;
+
+typedef struct {
     /* Local device info */
     libspdm_device_version_t version;
     libspdm_device_capability_t capability;
@@ -126,6 +192,10 @@ typedef struct {
 
     /*The device role*/
     bool is_requester;
+
+    uint8_t total_key_pairs;
+
+    libspdm_auth_local_context_t auth;
 } libspdm_local_context_t;
 
 typedef struct {
@@ -134,6 +204,7 @@ typedef struct {
 
     /* Peer device info (negotiated) */
     spdm_version_number_t version;
+    spdm_version_number_t secured_message_version;
     libspdm_device_capability_t capability;
     libspdm_device_algorithm_t algorithm;
 
@@ -147,6 +218,12 @@ typedef struct {
 
     /* Peer CertificateChain */
     libspdm_peer_used_cert_chain_t peer_used_cert_chain[SPDM_MAX_SLOT_COUNT];
+    uint8_t peer_used_cert_chain_slot_id;
+
+    /* Local Used CertificateChain (for responder, or requester in mut auth) */
+    const uint8_t *local_used_cert_chain_buffer;
+    size_t local_used_cert_chain_buffer_size;
+    uint8_t local_used_cert_chain_slot_id;
 
     /* Specifies whether the cached negotiated state should be invalidated. (responder only)
      * This is a "sticky" bit wherein if it is set to 1 then it cannot be set to 0. */
@@ -155,6 +232,8 @@ typedef struct {
     /* multi-key negotiated result */
     bool multi_key_conn_req;
     bool multi_key_conn_rsp;
+
+    libspdm_auth_connection_info_t auth;
 } libspdm_connection_info_t;
 
 typedef struct {
@@ -463,6 +542,8 @@ typedef struct {
     uint32_t session_id;
     bool use_psk;
     uint8_t mut_auth_requested;
+    uint8_t peer_used_cert_chain_slot_id;
+    uint8_t local_used_cert_chain_slot_id;
     uint8_t end_session_attributes;
     uint8_t session_policy;
     uint8_t heartbeat_period;
@@ -470,9 +551,8 @@ typedef struct {
     /* Register for the last KEY_UPDATE token and operation (responder only)*/
     spdm_key_update_request_t last_key_update_request;
     void *secured_message_context;
-    /* Only present in session info as it is currently only used within a secure session. */
-    uint8_t local_used_cert_chain_slot_id;
-    uint8_t peer_used_cert_chain_slot_id;
+
+    libspdm_auth_session_info_t auth;
 } libspdm_session_info_t;
 
 #define LIBSPDM_MAX_ENCAP_REQUEST_OP_CODE_SEQUENCE_COUNT 3
@@ -689,6 +769,11 @@ typedef struct {
 #if LIBSPDM_ENABLE_CAPABILITY_MEAS_CAP
     libspdm_meas_log_reset_callback_func spdm_meas_log_reset_callback;
 #endif /* LIBSPDM_ENABLE_CAPABILITY_MEAS_CAP */
+
+    /* Scratch buffers for auth requester/responder message processing */
+    uint8_t auth_req_scratch_buffer[1024];
+    uint8_t auth_rsp_scratch_buffer[1024];
+    uint8_t auth_sign_msg_scratch_buffer[1024];
 } libspdm_context_t;
 
 #define LIBSPDM_CONTEXT_SIZE_WITHOUT_SECURED_CONTEXT (sizeof(libspdm_context_t))
@@ -878,6 +963,16 @@ void libspdm_session_info_init(libspdm_context_t *spdm_context,
                                libspdm_session_info_t *session_info,
                                uint32_t session_id, spdm_version_number_t secured_message_version,
                                bool use_psk);
+
+void libspdm_session_info_set_auth_info(libspdm_context_t *spdm_context,
+                                        libspdm_session_info_t *session_info);
+
+uint16_t libspdm_get_credential_id_from_session(libspdm_context_t *spdm_context,
+                                                uint32_t session_id);
+
+bool libspdm_get_auth_proc_id_from_session(libspdm_context_t *spdm_context,
+    libspdm_session_info_t *session_info,
+    spdm_auth_auth_proc_id_t *proc_id);
 
 #if LIBSPDM_ENABLE_CAPABILITY_PSK_CAP
 /**
@@ -1219,6 +1314,41 @@ size_t libspdm_get_opaque_data_supported_version_data_size(libspdm_context_t *sp
  * @return the size in bytes of opaque data version selection.
  **/
 size_t libspdm_get_opaque_data_version_selection_data_size(const libspdm_context_t *spdm_context);
+
+size_t libspdm_get_opaque_data_table_header_size(const libspdm_context_t *spdm_context);
+void libspdm_build_opaque_data_table_header_data(const libspdm_context_t *spdm_context,
+                                                 uint8_t total_elements,
+                                                 size_t *data_out_size,
+                                                 void *data_out);
+
+size_t libspdm_get_opaque_data_supported_version_element_size(const libspdm_context_t *spdm_context);
+size_t libspdm_get_opaque_data_version_selection_element_size(const libspdm_context_t *spdm_context);
+
+size_t libspdm_get_aods_invoke_seap_element_size(const libspdm_context_t *spdm_context);
+size_t libspdm_get_aods_seap_success_element_size(const libspdm_context_t *spdm_context);
+size_t libspdm_get_aods_auth_hello_element_size(const libspdm_context_t *spdm_context);
+void libspdm_build_aods_invoke_seap_element(const libspdm_context_t *spdm_context,
+                                            uint16_t credential_id,
+                                            size_t *data_out_size,
+                                            void *data_out);
+void libspdm_build_aods_seap_success_element(const libspdm_context_t *spdm_context,
+                                             size_t *data_out_size,
+                                             void *data_out);
+void libspdm_build_aods_auth_hello_element(const libspdm_context_t *spdm_context,
+                                           size_t *data_out_size,
+                                           void *data_out);
+libspdm_return_t libspdm_process_aods_invoke_seap_element(
+    libspdm_context_t *spdm_context,
+    size_t data_in_size,
+    const void *data_in);
+libspdm_return_t libspdm_process_aods_seap_success_element(
+    libspdm_context_t *spdm_context,
+    size_t data_in_size,
+    const void *data_in);
+libspdm_return_t libspdm_process_aods_auth_hello_element(
+    libspdm_context_t *spdm_context,
+    size_t data_in_size,
+    const void *data_in);
 
 /**
  * Return the SPDMversion field of the version number struct.
