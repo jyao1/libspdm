@@ -222,6 +222,25 @@
 #define LIBSPDM_MAX_MEL_BLOCK_LEN 1024
 #endif
 
+/* This value specifies the maximum number of auth policy list count.
+ */
+#ifndef LIBSPDM_AUTH_MAX_POLICY_LIST_COUNT
+#define LIBSPDM_AUTH_MAX_POLICY_LIST_COUNT 4
+#endif
+
+/* This value specifies the maximum number of auth credential data,
+ * which is the public key in the SubjectPublicKeyInfo format specified by RFC 7250.
+ */
+#ifndef LIBSPDM_AUTH_MAX_CREDENTIAL_DATA_SIZE
+#define LIBSPDM_AUTH_MAX_CREDENTIAL_DATA_SIZE (512 + 32)
+#endif
+
+/* This value specifies the maximum size of SV reset data type list buffer.
+ */
+#ifndef LIBSPDM_AUTH_MAX_SV_RESET_DATA_TYPE_LIST_BUFFER_SIZE
+#define LIBSPDM_AUTH_MAX_SV_RESET_DATA_TYPE_LIST_BUFFER_SIZE 256
+#endif
+
 /* To ensure integrity in communication between the Requester and the Responder libspdm calculates
  * cryptographic digests and signatures over multiple requests and responses. This value specifies
  * whether libspdm will use a running calculation over the transcript, where requests and responses
