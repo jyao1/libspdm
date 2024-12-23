@@ -256,10 +256,11 @@ uint32_t libspdm_get_asym_signature_size(uint32_t base_asym_algo)
     }
 }
 
-static bool libspdm_asym_sign_wrap (void *context, size_t hash_nid, uint32_t base_asym_algo,
-                                    const uint8_t *param, size_t param_size,
-                                    const uint8_t *message, size_t message_size,
-                                    uint8_t *signature, size_t *sig_size)
+bool libspdm_asym_sign_wrap (
+    void *context, size_t hash_nid, uint32_t base_asym_algo,
+    const uint8_t *param, size_t param_size,
+    const uint8_t *message, size_t message_size,
+    uint8_t *signature, size_t *sig_size)
 {
     switch (base_asym_algo) {
     case SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_2048:
@@ -506,7 +507,7 @@ bool libspdm_asym_get_public_key_from_der(uint32_t base_asym_algo,
  * @retval true  asymmetric function need message hash
  * @retval false asymmetric function need raw message
  **/
-static bool libspdm_asym_func_need_hash(uint32_t base_asym_algo)
+bool libspdm_asym_func_need_hash(uint32_t base_asym_algo)
 {
     switch (base_asym_algo) {
     case SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_2048:
@@ -815,7 +816,7 @@ bool libspdm_sm2_dsa_verify_wrap (void *context, size_t hash_nid,
 }
 #endif
 
-static bool libspdm_asym_verify_wrap(
+bool libspdm_asym_verify_wrap(
     void *context, size_t hash_nid, uint32_t base_asym_algo,
     const uint8_t *param, size_t param_size,
     const uint8_t *message, size_t message_size,

@@ -14,6 +14,7 @@ target_sources(spdm_crypt_lib
         libspdm_crypt_hmac.c
         libspdm_crypt_hkdf.c
         libspdm_crypt_asym.c
+        libspdm_crypt_auth_asym.c
         libspdm_crypt_cert.c
         libspdm_crypt_aead.c
         libspdm_crypt_dhe.c

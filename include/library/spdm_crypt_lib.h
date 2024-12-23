@@ -15,6 +15,7 @@ extern "C" {
 
 #include "hal/base.h"
 #include "industry_standard/spdm.h"
+#include "industry_standard/spdm_authorization.h"
 
 #if (LIBSPDM_FFDHE_4096_SUPPORT)
 #define LIBSPDM_MAX_DHE_KEY_SIZE 512
@@ -1133,6 +1134,43 @@ bool libspdm_verify_req_info(uint8_t *req_info, uint16_t req_info_len);
 /*run all of the self-tests and returns the results.*/
 bool libspdm_fips_run_selftest(void *fips_selftest_context);
 #endif
+
+
+uint32_t libspdm_auth_base_algo_to_spdm_base_asym_algo (
+    uint64_t auth_base_algo
+    );
+
+uint32_t libspdm_auth_base_hash_algo_to_spdm_base_hash_algo (
+    uint64_t auth_base_hash_algo
+    );
+
+uint32_t libspdm_auth_get_asym_signature_size(uint64_t auth_base_algo);
+
+bool libspdm_auth_asym_verify(
+    spdm_auth_version_number_t spdm_auth_version,
+    uint64_t auth_base_algo, uint64_t auth_base_hash_algo,
+    void *context,
+    const uint8_t *message, size_t message_size,
+    const uint8_t *signature, size_t sig_size);
+
+bool libspdm_auth_asym_sign(
+    spdm_auth_version_number_t spdm_auth_version,
+    uint64_t auth_base_algo, uint64_t auth_base_hash_algo,
+    void *context,
+    const uint8_t *message, size_t message_size,
+    uint8_t *signature, size_t *sig_size);
+
+bool libspdm_auth_asym_get_public_key_from_x509(uint64_t auth_base_algo,
+                                                const uint8_t *cert,
+                                                size_t cert_size,
+                                                void **context);
+
+bool libspdm_auth_asym_get_public_key_from_der(uint64_t auth_base_algo,
+                                               const uint8_t *der_data,
+                                               size_t der_size,
+                                               void **context);
+
+void libspdm_auth_asym_free(uint64_t auth_base_algo, void *context);
 
 #ifdef __cplusplus
 }

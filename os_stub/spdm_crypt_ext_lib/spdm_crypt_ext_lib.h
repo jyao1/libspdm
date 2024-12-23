@@ -92,4 +92,10 @@ bool libspdm_measurement_hash_all(uint32_t measurement_hash_algo,
                                   const void *data, size_t data_size,
                                   uint8_t *hash_value);
 
+bool libspdm_auth_asym_get_private_key_from_pem(uint64_t auth_base_algo,
+                                                const uint8_t *pem_data,
+                                                size_t pem_size,
+                                                const char *password,
+                                                void **context);
+
 #endif /* SPDM_CRYPT_EXT_LIB_H */
