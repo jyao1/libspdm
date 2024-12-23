@@ -12,5 +12,5 @@ target_sources(spdm_crypt_ext_lib
     PRIVATE
         spdm_crypt_ext.c
         spdm_crypt_ext_pqc.c
+        spdm_crypt_auth_ext.c
 )
-
