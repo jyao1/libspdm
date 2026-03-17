@@ -108,6 +108,46 @@ bool libspdm_event_subscribe(
     return true;
 }
 
+/*
+ * libspdm_auth_event_drain is defined in spdm_auth_device_secret_lib_sample/
+ * auth_event.c when that library is linked.  A default no-op stub is
+ * provided here so that builds without auth support keep working:
+ *  - on GCC/Clang: __attribute__((weak)) provides a default.
+ *  - on MSVC: /alternatename linker pragma points to a default stub.
+ */
+bool libspdm_auth_event_drain_default(uint32_t *event_count,
+                                      size_t *events_list_size,
+                                      void *events_list)
+{
+    (void)events_list;
+    *event_count      = 0;
+    *events_list_size = 0;
+    return false;
+}
+
+#if defined(_MSC_VER)
+/* On MSVC: if libspdm_auth_event_drain is not found at link time, use the default stub. */
+#pragma comment(linker, "/alternatename:libspdm_auth_event_drain=libspdm_auth_event_drain_default")
+extern bool libspdm_auth_event_drain(uint32_t *event_count,
+                                     size_t *events_list_size,
+                                     void *events_list);
+#elif defined(__GNUC__) || defined(__clang__)
+__attribute__((weak)) bool libspdm_auth_event_drain(uint32_t *event_count,
+                                                    size_t *events_list_size,
+                                                    void *events_list)
+{
+    return libspdm_auth_event_drain_default(event_count, events_list_size, events_list);
+}
+#else
+/* Fallback: always use the stub. */
+bool libspdm_auth_event_drain(uint32_t *event_count,
+                              size_t *events_list_size,
+                              void *events_list)
+{
+    return libspdm_auth_event_drain_default(event_count, events_list_size, events_list);
+}
+#endif
+
 bool libspdm_generate_event_list(
     void *spdm_context,
     spdm_version_number_t spdm_version,
@@ -116,10 +156,35 @@ bool libspdm_generate_event_list(
     size_t *events_list_size,
     void *events_list)
 {
+    uint32_t auth_count;
+    size_t auth_size;
+    bool auth_has_events;
+
+    (void)spdm_context;
+    (void)spdm_version;
+    (void)session_id;
+
     if (g_generate_event_list_error) {
         return false;
     }
 
+    /*
+     * If auth events are pending (queued by SET_CRED_ID_PARAMS /
+     * SET_AUTH_POLICY in the DSP0289 authorization flow), drain them first.
+     * libspdm_auth_event_drain is defined in spdm_auth_device_secret_lib_sample.
+     * The default stub above is used when that library is not linked.
+     */
+    auth_count = 0;
+    auth_size  = *events_list_size;
+    auth_has_events = libspdm_auth_event_drain(&auth_count, &auth_size,
+                                                events_list);
+    if (auth_has_events) {
+        *event_count      = auth_count;
+        *events_list_size = auth_size;
+        return true;
+    }
+
+    /* Fall back to the generic dummy events for non-auth tests. */
     *event_count = g_event_count;
 
     for (uint32_t index = 0; index < *events_list_size; index++)
@@ -129,4 +194,5 @@ bool libspdm_generate_event_list(
 
     return true;
 }
+
 #endif /* LIBSPDM_ENABLE_CAPABILITY_EVENT_CAP */

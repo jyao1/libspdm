@@ -21,6 +21,7 @@ target_sources(spdm_auth_device_secret_lib_sample
         auth_sign.c
         auth_verify.c
         usas_persist.c
+        auth_event.c
 )
 
 if ((ARCH STREQUAL "arm") OR (ARCH STREQUAL "aarch64"))

@@ -126,5 +126,11 @@ libspdm_return_t libspdm_auth_get_response_set_cred_id_params_done(
 
     spdm_auth_response->header.request_response_code = SPDM_AUTH_SET_CRED_ID_PARAMS_DONE;
 
+    /* Notify the device HAL so it can queue a CredIDparamsChanged event
+     * (DSP0289 sec. 11 "Authorization events"). */
+    libspdm_auth_device_notify_cred_id_params_changed(
+        spdm_context, session_id,
+        spdm_auth_request->cred_params.credential_id);
+
     return LIBSPDM_STATUS_SUCCESS;
 }

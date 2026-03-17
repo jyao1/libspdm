@@ -128,5 +128,22 @@ libspdm_return_t libspdm_auth_get_response_set_auth_policy_done(
 
     spdm_auth_response->header.request_response_code = SPDM_AUTH_SET_AUTH_POLICY_DONE;
 
+    /* Emit one AuthPolicyChanged event per policy entry (DSP0289 sec. 11).
+     * Each event's PolicyID is the policy_type field of the respective entry. */
+    {
+        const spdm_auth_policy_struct_for_dsp0289_t *entry =
+            (const spdm_auth_policy_struct_for_dsp0289_t *)
+            ((const uint8_t *)(&spdm_auth_request->policy_list + 1));
+        uint16_t i;
+        for (i = 0; i < spdm_auth_request->policy_list.num_of_policies; i++) {
+            libspdm_auth_device_notify_auth_policy_changed(
+                spdm_context, session_id,
+                spdm_auth_request->policy_list.credential_id,
+                &entry[i].policy_owner_id,
+                sizeof(entry[i].policy.policy_type),
+                (const uint8_t *)&entry[i].policy.policy_type);
+        }
+    }
+
     return LIBSPDM_STATUS_SUCCESS;
 }

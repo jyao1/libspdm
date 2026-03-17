@@ -578,4 +578,35 @@ typedef struct {
 
 #pragma pack()
 
+/* Authorization Event constants (DSP0289 sec. 11 "Authorization events") */
+
+/* EventGroupId for Authorization events: DMTF-DSP Vendor ID = 289 (0x121) */
+#define SPDM_AUTH_EVENT_GROUP_VENDOR_ID 289
+/* EventGroupVer for the Authorization Event Group */
+#define SPDM_AUTH_EVENT_GROUP_VER 1
+
+/* EventTypeId values (Table 73) */
+#define SPDM_AUTH_EVENT_TYPE_CRED_ID_PARAMS_CHANGED 1
+#define SPDM_AUTH_EVENT_TYPE_AUTH_POLICY_CHANGED     2
+
+/*
+ * EventDetail for CredIDparamsChanged (Table 74).
+ * Followed by credential_id_count × uint16_t CredentialIdList.
+ */
+typedef struct {
+    uint16_t credential_id_count;
+    /* uint16_t credential_id_list[credential_id_count]; */
+} spdm_auth_event_cred_id_params_changed_t;
+
+/*
+ * EventDetail for AuthPolicyChanged (Table 75).
+ * Followed by policy_id_len bytes of PolicyID.
+ */
+typedef struct {
+    uint16_t                    credential_id;
+    spdm_svh_dmtf_dsp_header_t policy_owner_id;
+    uint16_t                    policy_id_len;
+    /* uint8_t policy_id[policy_id_len]; */
+} spdm_auth_event_auth_policy_changed_t;
+
 #endif /* SPDM_AUTHORIZATION_H */

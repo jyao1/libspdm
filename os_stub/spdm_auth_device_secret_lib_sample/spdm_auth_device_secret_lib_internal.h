@@ -18,6 +18,7 @@
 #include "hal/library/auth_responder/resettodefaultlib.h"
 #include "hal/library/auth_responder/asymverifylib.h"
 #include "hal/library/auth_responder/usaspersistlib.h"
+#include "hal/library/auth_responder/autheventlib.h"
 #include "hal/library/auth_requester/asymsignlib.h"
 #include "hal/library/debuglib.h"
 #include "hal/library/cryptlib.h"

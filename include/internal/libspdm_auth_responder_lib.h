@@ -22,6 +22,7 @@ extern "C" {
 #include "hal/library/auth_responder/resettodefaultlib.h"
 #include "hal/library/auth_responder/asymverifylib.h"
 #include "hal/library/auth_responder/usaspersistlib.h"
+#include "hal/library/auth_responder/autheventlib.h"
 
 typedef
 libspdm_return_t (*libspdm_auth_get_response_func_t) (
