@@ -68,7 +68,7 @@ endif()
 
 set(OPENSSL_CONFIGURE_OPTIONS 
     ${OPENSSL_SHARED_OPTION} no-ssl no-tls no-dtls no-tests
-    no-threads no-engine no-capieng no-zlib no-legacy
+    no-threads no-zlib no-legacy
     --prefix=${OPENSSL_INSTALL_DIR}
     --openssldir=${OPENSSL_INSTALL_DIR}/ssl
 )
@@ -96,7 +96,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
         set(OPENSSL_BUILD_CMD make)
         set(OPENSSL_INSTALL_CMD make install_sw)
         if(OPENSSL_LIBRARY_TYPE STREQUAL "SHARED")
-            set(OPENSSL_LIB_FILE "${CMAKE_CURRENT_BINARY_DIR}/openssl-build/src/openssl_external-build/libcrypto-3-x64.dll")
+            set(OPENSSL_LIB_FILE "${CMAKE_CURRENT_BINARY_DIR}/openssl-build/src/openssl_external-build/libcrypto-4-x64.dll")
             set(OPENSSL_IMPLIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.dll.a")
         else()
         set(OPENSSL_LIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.a")
@@ -113,7 +113,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Windows")
         endif()
         if(OPENSSL_LIBRARY_TYPE STREQUAL "SHARED")
             set(OPENSSL_LIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.lib")
-            set(OPENSSL_DLL_FILE "${CMAKE_CURRENT_BINARY_DIR}/openssl-build/src/openssl_external-build/libcrypto-3-x64.dll")
+            set(OPENSSL_DLL_FILE "${CMAKE_CURRENT_BINARY_DIR}/openssl-build/src/openssl_external-build/libcrypto-4-x64.dll")
         else()
         set(OPENSSL_LIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.lib")
         endif()
@@ -132,9 +132,9 @@ else()
     set(OPENSSL_INSTALL_CMD make install_sw)
     if(OPENSSL_LIBRARY_TYPE STREQUAL "SHARED")
         if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-            set(OPENSSL_LIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.3.dylib")
+            set(OPENSSL_LIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.4.dylib")
         else()
-            set(OPENSSL_LIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.so.3")
+            set(OPENSSL_LIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.so.4")
         endif()
     else()
     set(OPENSSL_LIB_FILE "${OPENSSL_LIB_DIR}/libcrypto.a")

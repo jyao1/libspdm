@@ -811,18 +811,19 @@ bool libspdm_x509_get_serial_number(const uint8_t *cert, size_t cert_size,
         goto done;
     }
 
-    if (*serial_number_size < (size_t)asn1_integer->length) {
-        *serial_number_size = (size_t)asn1_integer->length;
+    if (*serial_number_size < (size_t)ASN1_STRING_length(asn1_integer)) {
+        *serial_number_size = (size_t)ASN1_STRING_length(asn1_integer);
         status = false;
         goto done;
     }
 
     if (serial_number != NULL) {
         libspdm_copy_mem(serial_number, *serial_number_size,
-                         asn1_integer->data, (size_t)asn1_integer->length);
+                         ASN1_STRING_get0_data(asn1_integer),
+                         (size_t)ASN1_STRING_length(asn1_integer));
         status = true;
     }
-    *serial_number_size = (size_t)asn1_integer->length;
+    *serial_number_size = (size_t)ASN1_STRING_length(asn1_integer);
 
 done:
 
@@ -1128,33 +1129,27 @@ bool libspdm_x509_get_validity(const uint8_t *cert, size_t cert_size,
         goto done;
     }
 
-    f_size = sizeof(ASN1_TIME) + f_time->length;
+    f_size = (size_t)i2d_ASN1_TIME((ASN1_TIME *)f_time, NULL);
     if (*from_size < f_size) {
         *from_size = f_size;
         res = false;
         goto done;
     }
     if (from != NULL) {
-        libspdm_copy_mem(from, *from_size, f_time, sizeof(ASN1_TIME));
-        ((ASN1_TIME *)from)->data = from + sizeof(ASN1_TIME);
-        libspdm_copy_mem(from + sizeof(ASN1_TIME),
-                         *from_size - sizeof(ASN1_TIME),
-                         f_time->data, f_time->length);
+        uint8_t *tmp_ptr = from;
+        i2d_ASN1_TIME((ASN1_TIME *)f_time, &tmp_ptr);
     }
     *from_size = f_size;
 
-    t_size = sizeof(ASN1_TIME) + t_time->length;
+    t_size = (size_t)i2d_ASN1_TIME((ASN1_TIME *)t_time, NULL);
     if (*to_size < t_size) {
         *to_size = t_size;
         res = false;
         goto done;
     }
     if (to != NULL) {
-        libspdm_copy_mem(to, *to_size, t_time, sizeof(ASN1_TIME));
-        ((ASN1_TIME *)to)->data = to + sizeof(ASN1_TIME);
-        libspdm_copy_mem(to + sizeof(ASN1_TIME),
-                         *to_size - sizeof(ASN1_TIME),
-                         t_time->data, t_time->length);
+        uint8_t *tmp_ptr = to;
+        i2d_ASN1_TIME((ASN1_TIME *)t_time, &tmp_ptr);
     }
     *to_size = t_size;
 
@@ -1215,19 +1210,15 @@ bool libspdm_x509_set_date_time(const char *date_time_str, void *date_time, size
         goto cleanup;
     }
 
-    d_size = sizeof(ASN1_TIME) + dt->length;
+    d_size = (size_t)i2d_ASN1_TIME(dt, NULL);
     if (*date_time_size < d_size) {
         *date_time_size = d_size;
         status = false;
         goto cleanup;
     }
     if (date_time != NULL) {
-        libspdm_copy_mem(date_time, *date_time_size, dt, sizeof(ASN1_TIME));
-        ((ASN1_TIME *)date_time)->data =
-            (uint8_t *)date_time + sizeof(ASN1_TIME);
-        libspdm_copy_mem((uint8_t *)date_time + sizeof(ASN1_TIME),
-                         *date_time_size - sizeof(ASN1_TIME),
-                         dt->data, dt->length);
+        uint8_t *tmp_ptr = (uint8_t *)date_time;
+        i2d_ASN1_TIME(dt, &tmp_ptr);
     }
     *date_time_size = d_size;
     status = true;
@@ -1257,7 +1248,29 @@ cleanup:
  **/
 int32_t libspdm_x509_compare_date_time(const void *date_time1, const void *date_time2)
 {
-    return (int32_t)ASN1_TIME_compare(date_time1, date_time2);
+    const uint8_t *p1;
+    const uint8_t *p2;
+    ASN1_TIME *dt1;
+    ASN1_TIME *dt2;
+    int32_t result;
+
+    p1 = (const uint8_t *)date_time1;
+    p2 = (const uint8_t *)date_time2;
+    dt1 = d2i_ASN1_TIME(NULL, &p1, 64);
+    dt2 = d2i_ASN1_TIME(NULL, &p2, 64);
+    if (dt1 == NULL || dt2 == NULL) {
+        if (dt1 != NULL) {
+            ASN1_TIME_free(dt1);
+        }
+        if (dt2 != NULL) {
+            ASN1_TIME_free(dt2);
+        }
+        return -2;
+    }
+    result = (int32_t)ASN1_TIME_compare(dt1, dt2);
+    ASN1_TIME_free(dt1);
+    ASN1_TIME_free(dt2);
+    return result;
 }
 
 /**
