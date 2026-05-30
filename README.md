@@ -73,6 +73,9 @@
    An [OpenSSL](https://www.openssl.org/) wrapper is included in [cryptlib_openssl](https://github.com/DMTF/libspdm/tree/main/os_stub/cryptlib_openssl).
    NOTE: SM2-KeyExchange and SM4_GCM are not supported.
 
+   An [AWS-LC](https://github.com/aws/aws-lc) wrapper is included in [cryptlib_awslc](https://github.com/DMTF/libspdm/tree/main/os_stub/cryptlib_awslc).
+   NOTE: SMx, SM2, SM4, Ed448, SLH-DSA are not supported.
+
    libspdm provides support for [FIPS 140-3](https://csrc.nist.gov/publications/detail/fips/140/3/final). Refer to [libspdm FIPS](https://github.com/DMTF/libspdm/blob/main/doc/fips.md) for more information.
 
    libspdm implements a raw public key format as defined in [RFC7250](https://www.rfc-editor.org/rfc/rfc7250). Refer to [libspdm raw public key](https://github.com/DMTF/libspdm/blob/main/doc/raw_public_key.md) for more information.

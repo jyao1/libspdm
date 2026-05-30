@@ -4,6 +4,9 @@
 [submodule "os_stub/mbedtlslib/mbedtls"]
     path = os_stub/mbedtlslib/mbedtls
     url = https://github.com/Mbed-TLS/mbedtls
+[submodule "os_stub/awslclib/aws-lc"]
+    path = os_stub/awslclib/aws-lc
+    url = https://github.com/aws/aws-lc
 [submodule "unit_test/cmockalib/cmocka"]
     path = unit_test/cmockalib/cmocka
 	url = https://gitlab.com/cmocka/cmocka.git
